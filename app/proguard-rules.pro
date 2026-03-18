@@ -1,0 +1,2 @@
+-keep class com.turnit.app.** { *; }
+-keepattributes *Annotation*
