@@ -44,7 +44,7 @@ class MainActivity : AppCompatActivity() {
 
     private val msgs = mutableListOf<ChatMsg>()
     private val models = buildModels()
-    private var model = models[0] // Default: QX Flash (Gemini 2.0)
+    private var model = models[0] 
     private var convId = UUID.randomUUID().toString()
     private var pending = -1
     private var tier = AppTier.Q
@@ -62,7 +62,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // 1. Initialize Logic Controllers
+        // 1. Initialize Controllers
         security = SecurityManager(this)
         reqCtrl = RequestController(
             scope = lifecycleScope,
@@ -71,7 +71,7 @@ class MainActivity : AppCompatActivity() {
         )
         btnCtrl = ButtonController(binding.btnSend)
 
-        // 2. UI Setup
+        // 2. Setup Interface
         loadTypefaces()
         applyTypefaces()
         startAndBindService()
@@ -79,7 +79,8 @@ class MainActivity : AppCompatActivity() {
         setupRecycler()
         setupMovingBorder()
         
-        // 3. APPLY CLEAR VISION (Fixes sidebar/nav blur)
+        // 3. CLEAN VISION PROTOCOL
+        // This removes the blur that was making text unreadable
         applyHardwareClearVision() 
         
         setupModelChip()
@@ -114,18 +115,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * CLEAR VISION PROTOCOL:
-     * We explicitly clear blur from text-heavy areas (NavView).
-     * We only keep a subtle glow for the neon input border.
+     * FIX: Clears blurs from all containers that hold text.
+     * This restores 100% sharpness to your chat messages and sidebar.
      */
     private fun applyHardwareClearVision() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Force-remove any stuck blur from the sidebar to ensure text clarity
+            // Remove hardware-level blur from sidebar
             binding.navView.setRenderEffect(null)
 
-            // Apply a localized blur ONLY to the input border for the neon effect
-            val neonBlur = RenderEffect.createBlurEffect(12f, 12f, Shader.TileMode.CLAMP)
-            binding.inputBorderContainer.setRenderEffect(neonBlur)
+            // Remove hardware-level blur from chatbox/input area
+            binding.inputBorderContainer.setRenderEffect(null)
         }
     }
 
@@ -256,12 +255,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 2026 STABLE CONFIG:
-     * Switched from retired gemini-1.5 to gemini-2.0-flash.
+     * MODEL UPDATE: Integrated gemini-3-flash-preview.
      */
     private fun buildModels() = listOf(
-        ModelOption("QX Flash", "gemini-2.0-flash", "Rapid - Stable v1", ModelOption.TYPE_GEMINI),
-        ModelOption("QX Apex 397", "Qwen/Qwen2.5-72B-Instruct", "Max - Reasoning", ModelOption.TYPE_HUGGINGFACE)
+        ModelOption("QX Flash", "gemini-3-flash-preview", "Quantum - Rapid v3", ModelOption.TYPE_GEMINI),
+        ModelOption("QX Apex 397", "Qwen/Qwen2.5-72B-Instruct", "Quantum - Max Reasoning", ModelOption.TYPE_HUGGINGFACE)
     )
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density + .5f).toInt()
