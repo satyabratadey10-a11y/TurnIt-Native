@@ -14,11 +14,10 @@ data class ChatResult(val text: String, val latencyMs: Long, val modelId: String
 
 class RequestController(
     private val scope: CoroutineScope,
-    private val geminiKey: String, // BuildConfig.GEMINI_API_KEY
+    private val geminiKey: String,
     private val hfKey: String
 ) {
     companion object {
-        // v1beta supports the gemini-3-flash-preview model
         const val BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
     }
 
@@ -35,31 +34,31 @@ class RequestController(
             val result = withContext(Dispatchers.IO) {
                 runCatching {
                     val t0 = System.currentTimeMillis()
-                    // Implementation of your requested Java-to-Kt logic
                     val text = callGemini(prompt, model.modelId, geminiKey)
                     ChatResult(text, System.currentTimeMillis() - t0, model.modelId)
                 }
             }
             result.fold(
                 onSuccess = { onResult(it) },
-                onFailure = { onError(it.message ?: "Check your NEW API Key") }
+                onFailure = { onError(it.message ?: "Check API Key Status") }
             )
         }
     }
 
     private suspend fun callGemini(prompt: String, modelId: String, apiKey: String): String {
+        val cleanId = modelId.removePrefix("models/")
         val body = JSONObject().put("contents", JSONArray().put(
             JSONObject().put("parts", JSONArray().put(JSONObject().put("text", prompt)))
         )).toString()
 
-        val url = "$BASE_URL/$modelId:generateContent?key=$apiKey"
+        val url = "$BASE_URL/$cleanId:generateContent?key=$apiKey"
         val req = Request.Builder().url(url).post(body.toRequestBody(jt)).build()
 
         return http.newCall(req).execute().use { resp ->
             val raw = resp.body?.string() ?: ""
             if (!resp.isSuccessful) {
                 val msg = runCatching { JSONObject(raw).getJSONObject("error").getString("message") }.getOrNull()
-                throw RuntimeException("Gemini Error: ${msg ?: resp.code}")
+                throw RuntimeException("Gemini: ${msg ?: resp.code}")
             }
             JSONObject(raw).getJSONArray("candidates").getJSONObject(0)
                 .getJSONObject("content").getJSONArray("parts").getJSONObject(0).getString("text")
