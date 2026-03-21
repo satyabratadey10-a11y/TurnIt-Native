@@ -16,12 +16,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
+// Carrier for chat response data
 data class ChatResult(
     val text: String,
     val latencyMs: Long,
     val modelId: String
 )
 
+// Suspending rate limiter to prevent API 429 errors
 class RateLimiter(private val maxRpm: Int) {
     private val windowMs = 60_000L
     private val stamps = ArrayDeque<Long>()
@@ -42,12 +44,12 @@ class RateLimiter(private val maxRpm: Int) {
 
 class RequestController(
     private val scope: CoroutineScope,
-    private val geminiKey: String,
-    private val hfKey: String
+    private val geminiKey: String, // From BuildConfig
+    private val hfKey: String      // From BuildConfig
 ) {
     companion object {
-        // Switched to v1 (Stable) to avoid the v1beta 404 errors
-        const val GEMINI_BASE = "https://generativelanguage.googleapis.com/v1/models"
+        // v1beta is required for the latest Flash/Pro models to avoid 404s
+        const val GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
         const val HF_BASE = "https://api-inference.huggingface.co/models"
     }
 
@@ -66,11 +68,15 @@ class RequestController(
     private val hfLimiter = RateLimiter(10)
     private val noLimiter = RateLimiter(Int.MAX_VALUE)
 
+    // Key Management
     fun setUserGeminiKey(k: String?) { userGeminiKey = k?.trim()?.ifEmpty { null } }
     fun setUserHfKey(k: String?) { userHfKey = k?.trim()?.ifEmpty { null } }
     fun isActive() = activeJob?.isActive == true
     fun cancel() { activeJob?.cancel(); activeJob = null }
 
+    /**
+     * Entry point for sending messages. Handles Dispatcher switching and Rate Limiting.
+     */
     fun send(
         prompt: String,
         model: ModelOption,
@@ -86,7 +92,6 @@ class RequestController(
                             val key = userGeminiKey ?: geminiKey
                             val lim = if (userGeminiKey != null) noLimiter else geminiLimiter
                             lim.acquire()
-                            // Ensure modelId is mapped correctly (e.g. "gemini-1.5-flash")
                             callGemini(prompt, model.modelId, key)
                         }
                         ModelOption.TYPE_HUGGINGFACE -> {
@@ -100,21 +105,25 @@ class RequestController(
                     ChatResult(text, System.currentTimeMillis() - t0, model.modelId)
                 }
             }
+            
             if (!isActive) return@launch
+            
             result.fold(
                 onSuccess = { onResult(it) },
                 onFailure = { 
-                    Log.e("RequestController", "Error: ${it.message}")
-                    onError(it.message ?: "Request failed") 
+                    val errorMsg = it.message ?: "Request failed"
+                    Log.e("TurnIt_API", "Error: $errorMsg")
+                    onError(errorMsg) 
                 }
             )
         }
     }
 
     private suspend fun callGemini(prompt: String, modelId: String, apiKey: String): String {
-        // Sanitize modelId: Remove "models/" if it was prepended twice
+        // Step 1: Sanitize modelId (ensure no "models/" prefix)
         val cleanId = modelId.removePrefix("models/")
         
+        // Step 2: Build Payload
         val body = JSONObject()
             .put("contents", JSONArray().put(
                 JSONObject().put("parts", JSONArray().put(
@@ -122,6 +131,7 @@ class RequestController(
                 ))
             )).toString()
 
+        // Step 3: Execute Request
         val url = "$GEMINI_BASE/$cleanId:generateContent?key=$apiKey"
         val req = Request.Builder()
             .url(url)
@@ -131,9 +141,13 @@ class RequestController(
         return http.newCall(req).execute().use { resp ->
             val raw = resp.body?.string() ?: ""
             if (!resp.isSuccessful) {
-                val errJson = runCatching { JSONObject(raw).getJSONObject("error").getString("message") }.getOrNull()
-                throw RuntimeException("Gemini ${resp.code}: ${errJson ?: "Unknown Error"}")
+                val serverMsg = runCatching { 
+                    JSONObject(raw).getJSONObject("error").getString("message") 
+                }.getOrNull()
+                throw RuntimeException("Gemini ${resp.code}: ${serverMsg ?: "Invalid Model or Key"}")
             }
+            
+            // Step 4: Parse Response
             JSONObject(raw)
                 .getJSONArray("candidates")
                 .getJSONObject(0)
@@ -162,9 +176,12 @@ class RequestController(
         return http.newCall(req).execute().use { resp ->
             val raw = resp.body?.string() ?: ""
             if (!resp.isSuccessful) {
-                throw RuntimeException("HF ${resp.code}: Model might be loading or path is wrong.")
+                throw RuntimeException("HF ${resp.code}: Model is likely loading. Try again in 30s.")
             }
+            
+            // HuggingFace returns an array: [{"generated_text": "..."}]
             val array = JSONArray(raw)
+            if (array.length() == 0) throw RuntimeException("Empty response from HuggingFace")
             array.getJSONObject(0).getString("generated_text").trim()
         }
     }
