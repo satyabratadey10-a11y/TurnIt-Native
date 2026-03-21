@@ -18,7 +18,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.LinearInterpolator
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
@@ -64,6 +63,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Initialize Logic
         security = SecurityManager(this)
         reqCtrl = RequestController(
             scope = lifecycleScope,
@@ -72,13 +72,14 @@ class MainActivity : AppCompatActivity() {
         )
         btnCtrl = ButtonController(binding.btnSend)
 
+        // UI Setup
         loadTypefaces()
         applyTypefaces()
         startAndBindService()
         setupDrawer()
         setupRecycler()
         setupMovingBorder()
-        applyHardwareBlur()
+        applyHardwareBlur() // Corrected logic
         setupModelChip()
         setupSendButton()
         boot()
@@ -110,14 +111,18 @@ class MainActivity : AppCompatActivity() {
         binding.etInput.typeface = tfSpaceGrotesk
     }
 
+    /**
+     * FIX: We only apply blur to non-text containing layers.
+     * Blurring 'navView' or 'inputBorderContainer' blurs their text.
+     * We limit blur to the sidebar's header only.
+     */
     private fun applyHardwareBlur() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Apply blur ONLY to navigation and input container, NOT the root text areas
-            val blur = RenderEffect.createBlurEffect(20f, 20f, Shader.TileMode.CLAMP)
-            binding.navView.setRenderEffect(blur)
-            // Note: If inputBorderContainer is blurred, text inside it blurs too.
-            // We only apply a light blur to the container background.
-            binding.inputBorderContainer.setRenderEffect(RenderEffect.createBlurEffect(10f, 10f, Shader.TileMode.CLAMP))
+            val blur = RenderEffect.createBlurEffect(15f, 15f, Shader.TileMode.CLAMP)
+            
+            // Only blur the sidebar header background, not the list
+            val headerView = binding.navView.getHeaderView(0)
+            headerView?.setRenderEffect(blur)
         }
     }
 
@@ -152,9 +157,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupDrawer() {
         setSupportActionBar(binding.toolbar)
-        toggle = ActionBarDrawerToggle(this, binding.drawerLayout, binding.toolbar, 0, 0)
+        toggle = ActionBarDrawerToggle(this, binding.drawerLayout, binding.toolbar, 
+            R.string.drawer_open, R.string.drawer_close)
         binding.drawerLayout.addDrawerListener(toggle)
         toggle.syncState()
+
+        binding.navView.setNavigationItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_new_chat -> { newConversation(); true }
+                else -> false
+            }.also { binding.drawerLayout.closeDrawer(GravityCompat.START) }
+        }
     }
 
     private fun boot() {
@@ -165,10 +178,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setHeader(t: AppTier, name: String) {
+        tier = t
         val badge = if (t == AppTier.QX) "QX" else "Q"
         supportActionBar?.title = "TurnIt $badge"
         val hv = binding.navView.getHeaderView(0)
-        hv?.findViewById<TextView>(R.id.nav_header_username)?.text = name
+        hv?.findViewById<TextView>(R.id.nav_header_username)?.apply {
+            text = name
+            typeface = tfSpaceGrotesk
+        }
     }
 
     private fun setupRecycler() {
@@ -180,7 +197,10 @@ class MainActivity : AppCompatActivity() {
     private fun setupModelChip() {
         binding.btnModelChip.text = model.displayName
         binding.btnModelChip.setOnClickListener {
-            // Your dialog logic here
+            ModelSelectionDialog(models, model.modelId) { selected ->
+                model = selected
+                binding.btnModelChip.text = selected.displayName
+            }.show(supportFragmentManager, "model_dialog")
         }
     }
 
@@ -191,24 +211,45 @@ class MainActivity : AppCompatActivity() {
     private fun sendMessage() {
         val txt = binding.etInput.text.toString().trim()
         if (txt.isEmpty()) return
+        
         binding.etInput.setText("")
         addMsg(txt, ChatMsg.USER)
+        
         pending = msgs.size
-        addMsg("Processing...", ChatMsg.AI)
-        reqCtrl.send(txt, model, { r -> updateMsg(pending, r.text) }, { e -> updateMsg(pending, "Error: $e") })
+        addMsg("Quantum processing...", ChatMsg.AI)
+        
+        btnCtrl.toProcessing()
+        reqCtrl.send(
+            prompt = txt,
+            model = model,
+            onResult = { r -> updateMsg(pending, r.text) },
+            onError = { e -> updateMsg(pending, "Error: $e") }
+        )
     }
 
     private fun updateMsg(at: Int, text: String) {
         if (at in msgs.indices) {
             msgs[at] = ChatMsg(text, ChatMsg.AI)
             adapter.notifyItemChanged(at)
+            scrollToBottom()
         }
+        btnCtrl.toIdle()
     }
 
     private fun addMsg(t: String, tp: Int) {
         msgs.add(ChatMsg(t, tp))
         adapter.notifyItemInserted(msgs.size - 1)
-        binding.recyclerMessages.smoothScrollToPosition(msgs.size - 1)
+        scrollToBottom()
+    }
+
+    private fun newConversation() {
+        msgs.clear()
+        adapter.notifyDataSetChanged()
+        convId = UUID.randomUUID().toString()
+    }
+
+    private fun scrollToBottom() {
+        if (msgs.isNotEmpty()) binding.recyclerMessages.smoothScrollToPosition(msgs.size - 1)
     }
 
     private fun buildModels() = listOf(
@@ -217,9 +258,15 @@ class MainActivity : AppCompatActivity() {
     )
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density + .5f).toInt()
-    override fun onDestroy() { super.onDestroy(); unbindService(svcConn); reqCtrl.close() }
 
-    // --- Sub-classes & Adapter ---
+    override fun onDestroy() {
+        super.onDestroy()
+        unbindService(svcConn)
+        reqCtrl.close()
+    }
+
+    // --- Adapter & Holder ---
+
     data class ChatMsg(val text: String, val type: Int) {
         companion object { const val USER = 0; const val AI = 1 }
     }
@@ -232,11 +279,12 @@ class MainActivity : AppCompatActivity() {
         }
         override fun onBindViewHolder(h: VH, pos: Int) {
             val msg = m[pos]
-            val target = if (msg.type == ChatMsg.USER) h.tu else h.ta
             h.cu.visibility = if (msg.type == ChatMsg.USER) View.VISIBLE else View.GONE
             h.ca.visibility = if (msg.type == ChatMsg.AI) View.VISIBLE else View.GONE
-            target.text = msg.text
-            target.typeface = tfSpaceGrotesk
+            
+            val tv = if (msg.type == ChatMsg.USER) h.tu else h.ta
+            tv.text = msg.text
+            tv.typeface = tfSpaceGrotesk
         }
         override fun getItemCount() = m.size
         inner class VH(v: View) : RecyclerView.ViewHolder(v) {
