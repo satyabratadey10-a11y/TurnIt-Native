@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TurnIt QX - Deep Space Nebula (Cinematic 5-Layer Composite) -->
+<!-- TurnIt QX - Deep Space Nebula (Cinematic 5-Layer Composite) 
+     Optimized for High-Contrast Visibility -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Layer 0: The "Void" (Solid Base) -->
@@ -10,7 +11,7 @@
     </item>
 
     <!-- Layer 1: Nebula Purple Glow (Top-Right)
-         Increased Alpha to 45% (#73...) for visibility -->
+         Alpha: 45% (#73...) -->
     <item
         android:top="-150dp"
         android:right="-100dp"
@@ -27,7 +28,7 @@
     </item>
 
     <!-- Layer 2: Deep Violet Core (Center-Left)
-         Increased Alpha to 40% (#66...) -->
+         Alpha: 40% (#66...) -->
     <item
         android:top="100dp"
         android:right="50dp"
@@ -44,7 +45,7 @@
     </item>
 
     <!-- Layer 3: Aurora Teal Leak (Bottom-Right)
-         Increased Alpha to 25% (#40...) for that "Quantum" feel -->
+         Alpha: 25% (#40...) -->
     <item
         android:top="400dp"
         android:right="-80dp"
@@ -61,7 +62,7 @@
     </item>
 
     <!-- Layer 4: Cinematic Vignette 
-         Darkens the edges to make the center content pop -->
+         Ensures edges are deep black to make the Nebula pop -->
     <item>
         <shape android:shape="rectangle">
             <gradient
