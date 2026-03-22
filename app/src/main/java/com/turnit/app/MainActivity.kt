@@ -173,11 +173,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun boot() {
-        lifecycleScope.launch {
+    lifecycleScope.launch {
+        try {
             security.ensureDir()
-            security.getCachedUid()?.let { setHeader(tier, security.getCachedUname() ?: "Operator") }
+            val cachedUid = security.getCachedUid()
+            if (cachedUid != null) {
+                val cachedName = security.getCachedUname() ?: "Operator"
+                setHeader(tier, cachedName)
+            } else {
+                Log.d("MainActivity", "No cached user ID found")
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Boot failed", e)
+            Toast.makeText(this@MainActivity, "Initialization error", Toast.LENGTH_SHORT).show()
         }
     }
+}
 
     private fun setHeader(t: AppTier, name: String) {
         tier = t
