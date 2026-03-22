@@ -1,70 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TurnIt QX - Deep Space Nebula (Cinematic 5-Layer Composite) 
-     Optimized for High-Contrast Visibility -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Base Void -->
+    <item><shape><solid android:color="#010409" /></shape></item>
 
-    <!-- Layer 1: Nebula Purple Glow (Top-Right)
-         Alpha: 45% (#73...) -->
-    <item
-        android:top="-150dp"
-        android:right="-100dp"
-        android:left="50dp"
-        android:bottom="100dp">
+    <!-- Nebula Purple (Increased visibility) -->
+    <item android:top="-100dp" android:right="-50dp">
         <shape android:shape="oval">
             <gradient
                 android:type="radial"
-                android:gradientRadius="450dp"
-                android:startColor="#731A0B2E"
-                android:centerColor="#401A0B2E"
+                android:gradientRadius="600dp"
+                android:startColor="#CC1A0B2E" 
                 android:endColor="#001A0B2E" />
         </shape>
     </item>
 
-    <!-- Layer 2: Deep Violet Core (Center-Left)
-         Alpha: 40% (#66...) -->
-    <item
-        android:top="100dp"
-        android:right="50dp"
-        android:left="-100dp"
-        android:bottom="50dp">
+    <!-- Aurora Teal (Increased visibility) -->
+    <item android:bottom="-50dp" android:left="-50dp">
         <shape android:shape="oval">
             <gradient
                 android:type="radial"
-                android:gradientRadius="400dp"
-                android:startColor="#660D0221"
-                android:centerColor="#330D0221"
-                android:endColor="#000D0221" />
-        </shape>
-    </item>
-
-    <!-- Layer 3: Aurora Teal Leak (Bottom-Right)
-         Alpha: 25% (#40...) -->
-    <item
-        android:top="400dp"
-        android:right="-80dp"
-        android:left="100dp"
-        android:bottom="-100dp">
-        <shape android:shape="oval">
-            <gradient
-                android:type="radial"
-                android:gradientRadius="350dp"
-                android:startColor="#4000D1FF"
-                android:centerColor="#1A00D1FF"
+                android:gradientRadius="500dp"
+                android:startColor="#9900D1FF"
                 android:endColor="#0000D1FF" />
         </shape>
     </item>
-
-    <!-- Layer 4: Cinematic Vignette + Base
-         Ensures edges are deep black to make the Nebula pop -->
-    <item>
-        <shape android:shape="rectangle">
-            <gradient
-                android:type="radial"
-                android:gradientRadius="85%p"
-                android:startColor="#00000000"
-                android:centerColor="#00000000"
-                android:endColor="#CC000000" />
-        </shape>
-    </item>
-
 </layer-list>
