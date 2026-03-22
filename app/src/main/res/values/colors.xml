@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="color_primary">#FFBF40BF</color>
-    <color name="color_primary_dark">#FF702963</color>
-    <color name="color_on_primary">#FFFFFFFF</color>
-    <color name="color_background">#FF000000</color>
-    <color name="color_header">#CC1A0A2E</color>
-    <color name="color_bottom_bar">#CC0A0318</color>
-    <color name="color_surface">#FF1A1035</color>
+    <!-- Header & Navigation -->
+    <color name="color_header">#FF0a0a12</color>
+    <color name="color_surface">#FF0d0d17</color>
+    <color name="color_bottom_bar">#FF0a0a12</color>
+    
+    <!-- Primary Colors -->
+    <color name="color_aurora">#FF00D1FF</color>
+    <color name="color_primary">#FF7B4FBF</color>
+    <color name="color_secondary">#FF1A0B2E</color>
+    
+    <!-- Text Colors -->
     <color name="color_on_surface">#FFFFFFFF</color>
-    <color name="color_text_secondary">#FF886699</color>
-    <color name="color_aurora">#FFC084FC</color>
-    <color name="color_accent">#FF60A5FA</color>
-    <color name="color_stop">#FFF87171</color>
+    <color name="color_text_secondary">#FF888888</color>
+    
+    <!-- Accents -->
+    <color name="color_accent">#FF7B4FBF</color>
 </resources>
