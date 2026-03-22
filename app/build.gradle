@@ -73,6 +73,7 @@ dependencies {
 
     // Networking & Coroutines for AI Logic
     implementation "com.squareup.okhttp3:okhttp:4.11.0"
+    implementation "com.squareup.okhttp3:logging-interceptor:4.11.0"  // For debugging
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
 
     // Ktor Server & Client (Integrated for Qwen-Claude Logic)
@@ -80,6 +81,9 @@ dependencies {
     implementation "io.ktor:ktor-client-okhttp:2.3.7"
     implementation "io.ktor:ktor-server-netty:2.3.7"
     implementation "io.ktor:ktor-server-content-negotiation:2.3.7"
+
+    // JSON Parsing
+    implementation "org.json:json:20231013"
 
     // Testing Utilities
     testImplementation "junit:junit:4.13.2"
