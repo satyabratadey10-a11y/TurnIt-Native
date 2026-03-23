@@ -1,6 +1,5 @@
 package com.turnit.app
 
-import android.util.Log
 import kotlinx.coroutines.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -10,93 +9,79 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-data class ChatResult(val text: String, val latencyMs: Long, val modelId: String)
-
 class RequestController(
     private val scope: CoroutineScope,
     private val geminiKey: String,
     private val hfKey: String
 ) {
     companion object {
-        const val GEMINI_BASE = "https://generativelanguage.googleapis.com/v1/models"
-        const val HF_BASE = "https://api-inference.huggingface.co/models"
+        const val GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models"
+        const val HF_ROUTER = "https://router.huggingface.co/v1/chat/completions"
     }
 
-    private val jt = "application/json; charset=utf-8".toMediaType()
-    private val http = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(45, TimeUnit.SECONDS) // Increased for Qwen 397B
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    private var activeJob: Job? = null
-
-    fun send(prompt: String, model: ModelOption, onResult: (ChatResult) -> Unit, onError: (String) -> Unit) {
-        activeJob = scope.launch {
+    fun send(prompt: String, model: ModelOption, imageUrl: String? = null, onResult: (String) -> Unit, onError: (String) -> Unit) {
+        scope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    val t0 = System.currentTimeMillis()
-                    
-                    // CRITICAL FIX: Explicit check of the apiType
-                    val text = when (model.apiType) {
-                        ModelOption.TYPE_GEMINI -> {
-                            callGemini(prompt, model.modelId, geminiKey)
-                        }
-                        ModelOption.TYPE_HUGGINGFACE -> {
-                            callHuggingFace(prompt, model.modelId, hfKey)
-                        }
-                        else -> throw IllegalArgumentException("Unsupported API Type: ${model.apiType}")
+                    if (model.apiType == ModelOption.TYPE_GEMINI) {
+                        callGemini(prompt, model.modelId)
+                    } else {
+                        callHuggingFaceNovita(prompt, model.modelId, imageUrl)
                     }
-                    
-                    ChatResult(text, System.currentTimeMillis() - t0, model.modelId)
                 }
             }
-            
             withContext(Dispatchers.Main) {
-                result.fold(
-                    onSuccess = { onResult(it) },
-                    onFailure = { 
-                        // If it fails here, we know EXACTLY which API was hit
-                        val apiName = if (model.apiType == ModelOption.TYPE_GEMINI) "Gemini" else "HuggingFace"
-                        onError("$apiName Error: ${it.message}") 
-                    }
-                )
+                result.fold(onSuccess = { onResult(it) }, onFailure = { onError(it.message ?: "Error") })
             }
         }
     }
 
-    private suspend fun callGemini(prompt: String, modelId: String, apiKey: String): String {
-        val cleanId = modelId.removePrefix("models/")
+    private fun callGemini(prompt: String, id: String): String {
         val body = JSONObject().put("contents", JSONArray().put(
             JSONObject().put("parts", JSONArray().put(JSONObject().put("text", prompt)))
         )).toString()
+        
+        val req = Request.Builder().url("$GEMINI_URL/$id:generateContent?key=$geminiKey")
+            .post(body.toRequestBody("application/json".toMediaType())).build()
 
-        val url = "$GEMINI_BASE/$cleanId:generateContent?key=$apiKey"
-        val req = Request.Builder().url(url).post(body.toRequestBody(jt)).build()
-
-        return http.newCall(req).execute().use { resp ->
+        client.newCall(req).execute().use { resp ->
             val raw = resp.body?.string() ?: ""
-            if (!resp.isSuccessful) throw RuntimeException("HTTP ${resp.code}")
-            JSONObject(raw).getJSONArray("candidates").getJSONObject(0)
+            if (!resp.isSuccessful) throw Exception("Gemini Error: ${resp.code}")
+            return JSONObject(raw).getJSONArray("candidates").getJSONObject(0)
                 .getJSONObject("content").getJSONArray("parts").getJSONObject(0).getString("text")
         }
     }
 
-    private suspend fun callHuggingFace(prompt: String, modelId: String, token: String): String {
-        val body = JSONObject().put("inputs", prompt).toString()
-        val req = Request.Builder().url("$HF_BASE/$modelId")
-            .addHeader("Authorization", "Bearer $token")
-            .post(body.toRequestBody(jt)).build()
+    private fun callHuggingFaceNovita(prompt: String, modelId: String, imageUrl: String?): String {
+        val content = JSONArray()
+        content.put(JSONObject().put("type", "text").put("text", prompt))
+        
+        // Add Vision support if image URL is provided
+        imageUrl?.let {
+            content.put(JSONObject().put("type", "image_url").put("image_url", JSONObject().put("url", it)))
+        }
 
-        return http.newCall(req).execute().use { resp ->
+        val messages = JSONArray().put(JSONObject().put("role", "user").put("content", if (imageUrl == null) prompt else content))
+        
+        val body = JSONObject().apply {
+            put("model", modelId)
+            put("messages", messages)
+        }.toString()
+
+        val req = Request.Builder().url(HF_ROUTER)
+            .addHeader("Authorization", "Bearer $hfKey")
+            .post(body.toRequestBody("application/json".toMediaType())).build()
+
+        client.newCall(req).execute().use { resp ->
             val raw = resp.body?.string() ?: ""
-            if (resp.code == 503) throw RuntimeException("Model is still loading on HF")
-            if (!resp.isSuccessful) throw RuntimeException("HTTP ${resp.code}")
-            
-            // HuggingFace returns an array: [{"generated_text": "..."}]
-            val jsonArray = JSONArray(raw)
-            jsonArray.getJSONObject(0).getString("generated_text")
+            if (!resp.isSuccessful) throw Exception("HF Error: ${resp.code}")
+            return JSONObject(raw).getJSONArray("choices").getJSONObject(0)
+                .getJSONObject("message").getString("content")
         }
     }
-
-    fun close() = http.connectionPool.evictAll()
 }
