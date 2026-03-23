@@ -14,6 +14,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.turnit.app.databinding.ActivityMainBinding
 import kotlinx.coroutines.launch
 
+/**
+ * MainActivity for TuneAi (2026 Edition)
+ * Features: Animated RGB Logo, Glassmorphism UI, and Next-Gen API Routing.
+ */
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var reqCtrl: RequestController
@@ -26,15 +30,15 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Initialize API controller with environment keys
+        // Initialize API controller with environment keys from BuildConfig
         reqCtrl = RequestController(lifecycleScope, BuildConfig.GEMINI_API_KEY, BuildConfig.HUGGINGFACE_API_KEY)
         
         setupRecycler()
         
-        // Post to toolbar to ensure view dimensions are calculated for the gradient shader
+        // Post to toolbar to ensure text dimensions are ready for the Shader Matrix
         binding.toolbar.post { setupAnimatedRGBLogo() }
         
-        // Android 12+ (API 31) Blur cleanup to ensure text clarity over Nebula background
+        // Android 12+ Hardware Clear Vision: Remove blurs from interactive containers
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             binding.navView.setRenderEffect(null)
             binding.inputBorderContainer.setRenderEffect(null)
@@ -45,6 +49,7 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Logic for the flowing Red-Green-Blue gradient on the "TurnIt" logo.
+     * Uses a LinearGradient Shader and a Matrix translation for the "flow" effect.
      */
     private fun setupAnimatedRGBLogo() {
         val logoText = binding.toolbar.getChildAt(0) as? TextView ?: return
@@ -52,7 +57,7 @@ class MainActivity : AppCompatActivity() {
             Color.RED, 
             Color.GREEN, 
             Color.BLUE, 
-            Color.RED // Loop back to Red for seamless flow
+            Color.RED // Loop point for seamless animation
         )
         
         val textWidth = logoText.paint.measureText(logoText.text.toString())
@@ -61,7 +66,7 @@ class MainActivity : AppCompatActivity() {
         
         val matrix = Matrix()
         ValueAnimator.ofFloat(0f, textWidth).apply {
-            duration = 3000 // Flow speed
+            duration = 3000 // Smooth flow speed
             repeatCount = ValueAnimator.INFINITE
             interpolator = LinearInterpolator()
             addUpdateListener { 
@@ -74,15 +79,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Complete AI Model List with default names and Novita routing for Qwen.
+     * 2026 SUPREME MODEL LIST:
+     * Strictly using active 2026 endpoints to prevent 404 errors.
      */
     private fun buildModels() = listOf(
+        // Google Next-Gen (v1 Stable & v1beta)
         ModelOption("Gemini 3 Flash", "gemini-3-flash-preview", "Google - NextGen", ModelOption.TYPE_GEMINI),
         ModelOption("Gemini 2.5 Fast", "gemini-2.5-flash", "Google - Stable", ModelOption.TYPE_GEMINI),
-        ModelOption("Gemini 1.5 Pro", "gemini-1.5-pro", "Google - Advanced", ModelOption.TYPE_GEMINI),
+        
+        // Alibaba / HuggingFace (Routed via Novita for High-Performance Inference)
         ModelOption("Qwen 2.5 72B", "Qwen/Qwen2.5-72B-Instruct:novita", "Alibaba - Max", ModelOption.TYPE_HUGGINGFACE),
-        ModelOption("Qwen 3.5 397B", "Qwen/Qwen3.5-397B-A17B:novita", "Alibaba - Vision", ModelOption.TYPE_HUGGINGFACE),
-        ModelOption("Qwen 3.5 35B", "Qwen/Qwen3.5-35B-A3B:novita", "Alibaba - Vision", ModelOption.TYPE_HUGGINGFACE)
+        ModelOption("Qwen 3.5 397B", "Qwen/Qwen3.5-397B-A17B:novita", "Alibaba - Vision Pro", ModelOption.TYPE_HUGGINGFACE),
+        ModelOption("Qwen 3.5 35B", "Qwen/Qwen3.5-35B-A3B:novita", "Alibaba - Vision Lite", ModelOption.TYPE_HUGGINGFACE)
     )
 
     private fun sendMessage() {
@@ -91,11 +99,11 @@ class MainActivity : AppCompatActivity() {
         
         binding.etInput.setText("")
         
-        // Add User message
+        // Update local state: User message (Type 0)
         msgs.add(txt to 0) 
         val pos = msgs.size
         
-        // Add AI placeholder
+        // AI Placeholder (Type 1)
         msgs.add("Thinking..." to 1) 
         
         binding.recyclerMessages.adapter?.let {
@@ -103,11 +111,12 @@ class MainActivity : AppCompatActivity() {
             binding.recyclerMessages.smoothScrollToPosition(msgs.size - 1)
         }
         
-        reqCtrl.send(txt, model, null, { r -> 
-            msgs[pos] = r to 1
+        // Send request via the Novita-capable RequestController
+        reqCtrl.send(txt, model, null, { response -> 
+            msgs[pos] = response to 1
             runOnUiThread { binding.recyclerMessages.adapter?.notifyItemChanged(pos) }
-        }, { e -> 
-            msgs[pos] = "Error: $e" to 1
+        }, { error -> 
+            msgs[pos] = "Error: $error" to 1
             runOnUiThread { binding.recyclerMessages.adapter?.notifyItemChanged(pos) }
         })
     }
@@ -119,7 +128,7 @@ class MainActivity : AppCompatActivity() {
         binding.recyclerMessages.adapter = ChatAdapter(msgs)
     }
 
-    // --- Recycler Components ---
+    // --- Recycler Logic ---
 
     inner class ChatAdapter(private val m: List<Pair<String, Int>>) : RecyclerView.Adapter<VH>() {
         override fun getItemViewType(p: Int) = m[p].second
@@ -133,20 +142,21 @@ class MainActivity : AppCompatActivity() {
             val (text, type) = m[p]
             h.tv.text = text
             
-            // Glassmorphism implementation:
+            // Apply the Glassmorphism drawable (ensure res/drawable/bg_glass_bubble.xml exists)
             h.tv.setBackgroundResource(R.drawable.bg_glass_bubble)
             h.tv.setTextColor(Color.WHITE)
             
-            // Layout alignment based on sender type
+            // Dynamic margins and tinting for message bubbles
             val params = h.tv.layoutParams as ViewGroup.MarginLayoutParams
-            if (type == 0) { // User
+            if (type == 0) { // User alignment
                 params.marginStart = 80
                 params.marginEnd = 16
+                // Tint user bubbles with a semi-transparent Google Blue
                 h.tv.backgroundTintList = android.content.res.ColorStateList.valueOf(0x804285F4.toInt())
-            } else { // AI
+            } else { // AI alignment
                 params.marginStart = 16
                 params.marginEnd = 80
-                h.tv.backgroundTintList = null
+                h.tv.backgroundTintList = null // Default neutral glass
             }
             h.tv.layoutParams = params
         }
@@ -155,7 +165,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     class VH(v: View) : RecyclerView.ViewHolder(v) { 
-        // Must match the ID in item_chat_message.xml
+        // Target ID must match your item_chat_message.xml TextView ID
         val tv: TextView = v.findViewById(R.id.tv_message) 
     }
 }
