@@ -1,16 +1,10 @@
 package com.turnit.app
 
 import android.animation.ValueAnimator
-import android.graphics.RenderEffect
-import android.graphics.Shader
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.RotateDrawable
+import android.graphics.*
 import android.os.Build
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.view.animation.LinearInterpolator
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -18,16 +12,13 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.turnit.app.databinding.ActivityMainBinding
-import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
-
     private lateinit var binding: ActivityMainBinding
     private lateinit var reqCtrl: RequestController
-    private lateinit var tfSpaceGrotesk: Typeface
-    private val msgs = mutableListOf<ChatMsg>()
+    private val msgs = mutableListOf<Pair<String, Int>>()
     private val models = buildModels()
-    private var model = models[0] 
+    private var model = models[0]
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
@@ -36,12 +27,10 @@ class MainActivity : AppCompatActivity() {
 
         reqCtrl = RequestController(lifecycleScope, BuildConfig.GEMINI_API_KEY, BuildConfig.HUGGINGFACE_API_KEY)
         
-        loadFonts()
         setupRecycler()
-        setupModelChip()
-        setupGoogleRGBBorder() // RGB Light logic
+        binding.toolbar.post { setupAnimatedRGBLogo() }
         
-        // Remove blur to keep text sharp
+        // Clear blurs from text areas
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             binding.navView.setRenderEffect(null)
             binding.inputBorderContainer.setRenderEffect(null)
@@ -50,120 +39,66 @@ class MainActivity : AppCompatActivity() {
         binding.btnSend.setOnClickListener { sendMessage() }
     }
 
-    private fun loadFonts() {
-        tfSpaceGrotesk = runCatching { Typeface.createFromAsset(assets, "fonts/SpaceGrotesk.ttf") }.getOrDefault(Typeface.SANS_SERIF)
-        binding.etInput.typeface = tfSpaceGrotesk
+    private fun setupAnimatedRGBLogo() {
+        val logoText = binding.toolbar.getChildAt(0) as? TextView ?: return
+        val colors = intArrayOf(0xFFFF0000.toInt(), 0xFF00FF00.toInt(), 0xFF0000FF.toInt(), 0xFFFF0000.toInt())
+        val textWidth = logoText.paint.measureText(logoText.text.toString())
+        val shader = LinearGradient(0f, 0f, textWidth, 0f, colors, null, Shader.TileMode.REPEAT)
+        logoText.paint.shader = shader
+        val matrix = Matrix()
+        ValueAnimator.ofFloat(0f, textWidth).apply {
+            duration = 2500; repeatCount = ValueAnimator.INFINITE; interpolator = LinearInterpolator()
+            addUpdateListener { 
+                matrix.setTranslate(it.animatedValue as Float, 0f)
+                shader.setLocalMatrix(matrix); logoText.invalidate() 
+            }
+            start()
+        }
     }
 
-    
+    private fun buildModels() = listOf(
+        ModelOption("Gemini 3 Flash", "gemini-3-flash-preview", "Google", ModelOption.TYPE_GEMINI),
+        ModelOption("Gemini 2.5 Fast", "gemini-2.5-flash", "Google", ModelOption.TYPE_GEMINI),
+        ModelOption("Qwen 2.5 72B", "Qwen/Qwen2.5-72B-Instruct:novita", "Alibaba", ModelOption.TYPE_HUGGINGFACE),
+        ModelOption("Qwen 3.5 397B", "Qwen/Qwen3.5-397B-A17B:novita", "Alibaba Vision", ModelOption.TYPE_HUGGINGFACE),
+        ModelOption("Qwen 3.5 35B", "Qwen/Qwen3.5-35B-A3B:novita", "Alibaba Vision", ModelOption.TYPE_HUGGINGFACE)
+    )
 
     private fun sendMessage() {
         val txt = binding.etInput.text.toString().trim()
         if (txt.isEmpty()) return
         binding.etInput.setText("")
-        addMsg(txt, ChatMsg.USER)
+        msgs.add(txt to 0) // User
         val pos = msgs.size
-        addMsg("Thinking...", ChatMsg.AI)
-        reqCtrl.send(txt, model, { r -> updateMsg(pos, r.text) }, { e -> updateMsg(pos, "Error: $e") })
+        msgs.add("Thinking..." to 1) // AI
+        binding.recyclerMessages.adapter?.notifyDataSetChanged()
+        
+        reqCtrl.send(txt, model, null, { r -> 
+            msgs[pos] = r to 1
+            binding.recyclerMessages.adapter?.notifyItemChanged(pos)
+        }, { e -> 
+            msgs[pos] = "Error: $e" to 1
+            binding.recyclerMessages.adapter?.notifyItemChanged(pos)
+        })
     }
-
-    private fun addMsg(t: String, tp: Int) {
-        msgs.add(ChatMsg(t, tp))
-        binding.recyclerMessages.adapter?.notifyItemInserted(msgs.size - 1)
-        binding.recyclerMessages.smoothScrollToPosition(msgs.size - 1)
-    }
-
-    // Inside MainActivity.kt, update the setupGoogleRGBBorder function:
-
-private fun setupGoogleRGBBorder() {
-    // Google's Official Brand Colors
-    val googleColors = intArrayOf(
-        0xFF4285F4.toInt(), // Blue
-        0xFFEA4335.toInt(), // Red
-        0xFFFBBC05.toInt(), // Yellow
-        0xFF34A853.toInt(), // Green
-        0xFF4285F4.toInt()  // Loop back to Blue
-    )
-
-    val sweep = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, googleColors).apply {
-        gradientType = GradientDrawable.SWEEP_GRADIENT
-        cornerRadius = dp(28).toFloat()
-    }
-
-    val rd = RotateDrawable().apply {
-        drawable = sweep
-        fromDegrees = 0f
-        toDegrees = 360f
-    }
-
-    // Apply to the border container
-    binding.inputBorderContainer.background = rd
-
-    ValueAnimator.ofInt(0, 10000).apply {
-        duration = 4000 // Slower, more "fluid" rotation like Gemini
-        repeatCount = ValueAnimator.INFINITE
-        interpolator = LinearInterpolator()
-        addUpdateListener { rd.level = it.animatedValue as Int }
-        start()
-    }
-}
-
-    private fun updateMsg(at: Int, text: String) {
-        if (at in msgs.indices) {
-            msgs[at] = ChatMsg(text, ChatMsg.AI)
-            binding.recyclerMessages.adapter?.notifyItemChanged(at)
-        }
-    }
-
-    /**
-     * PROBLEM 2 FIX: All 5 AI Models restored with default names.
-     */
-    private fun buildModels() = listOf(
-        ModelOption("Gemini 3 Flash", "gemini-3-flash-preview", "Google - NextGen", ModelOption.TYPE_GEMINI),
-        ModelOption("Gemini 2.5 Fast", "gemini-2.5-flash", "Google - Stable", ModelOption.TYPE_GEMINI),
-        ModelOption("Gemini 1.5 Pro", "gemini-1.5-pro", "Google - High Intelligence", ModelOption.TYPE_GEMINI),
-        ModelOption("Qwen 2.5 72B", "Qwen/Qwen2.5-72B-Instruct", "Alibaba - Powerhouse", ModelOption.TYPE_HUGGINGFACE),
-        ModelOption("Qwen 2.5 32B", "Qwen/Qwen2.5-32B-Instruct", "Alibaba - Balanced", ModelOption.TYPE_HUGGINGFACE)
-    )
 
     private fun setupRecycler() {
         binding.recyclerMessages.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         binding.recyclerMessages.adapter = ChatAdapter(msgs)
     }
 
-    private fun setupModelChip() {
-        binding.btnModelChip.text = model.displayName
-        binding.btnModelChip.setOnClickListener {
-            ModelSelectionDialog(models, model.modelId) { selected ->
-                model = selected
-                binding.btnModelChip.text = selected.displayName
-            }.show(supportFragmentManager, "model_dialog")
-        }
-    }
-
-    private fun dp(v: Int) = (v * resources.displayMetrics.density + .5f).toInt()
-
-    data class ChatMsg(val text: String, val type: Int) {
-        companion object { const val USER = 0; const val AI = 1 }
-    }
-
-    inner class ChatAdapter(private val m: List<ChatMsg>) : RecyclerView.Adapter<ChatAdapter.VH>() {
-        override fun getItemViewType(p: Int) = m[p].type
-        override fun onCreateViewHolder(parent: ViewGroup, t: Int) = VH(LayoutInflater.from(parent.context).inflate(R.layout.item_chat_message, parent, false))
-        override fun onBindViewHolder(h: VH, pos: Int) {
-            val msg = m[pos]
-            h.cu.visibility = if (msg.type == ChatMsg.USER) View.VISIBLE else View.GONE
-            h.ca.visibility = if (msg.type == ChatMsg.AI) View.VISIBLE else View.GONE
-            val tv = if (msg.type == ChatMsg.USER) h.tu else h.ta
-            tv.text = msg.text
-            tv.typeface = tfSpaceGrotesk
+    // --- Inner Classes ---
+    inner class ChatAdapter(private val m: List<Pair<String, Int>>) : RecyclerView.Adapter<VH>() {
+        override fun getItemViewType(p: Int) = m[p].second
+        override fun onCreateViewHolder(p: ViewGroup, t: Int) = VH(LayoutInflater.from(p.context).inflate(R.layout.item_chat_message, p, false))
+        override fun onBindViewHolder(h: VH, p: Int) {
+            val (text, type) = m[p]
+            h.tv.text = text
+            // Apply Glassmorphism Background
+            h.tv.setBackgroundResource(R.drawable.bg_glass_bubble)
+            h.tv.setTextColor(Color.WHITE)
         }
         override fun getItemCount() = m.size
-        inner class VH(v: View) : RecyclerView.ViewHolder(v) {
-            val cu: View = v.findViewById(R.id.container_user)
-            val ca: View = v.findViewById(R.id.container_ai)
-            val tu: TextView = v.findViewById(R.id.tv_user_message)
-            val ta: TextView = v.findViewById(R.id.tv_ai_message)
-        }
     }
+    class VH(v: View) : RecyclerView.ViewHolder(v) { val tv: TextView = v.findViewById(R.id.tv_message) }
 }
