@@ -30,18 +30,18 @@ class MainActivity : AppCompatActivity() {
 
         reqCtrl = RequestController(lifecycleScope, BuildConfig.GEMINI_API_KEY, BuildConfig.HUGGINGFACE_API_KEY)
         
-        setupSidebar() // RESTORED SIDEBAR
+        setupSidebar() 
         setupRecycler()
         
-        binding.toolbar.post { setupAnimatedRGBLogo() }
-        setupRGBInputBorder() // RESTORED RGB BORDER ANIMATION
+        binding.toolbar.post { setupAnimatedRGBLogo() } 
+        setupRGBInputBorder() 
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             binding.navView.setRenderEffect(null)
             binding.inputBorderContainer.setRenderEffect(null)
         }
 
-        binding.btnModelChip.setOnClickListener { showModelPicker() } // FIXED MODEL PICKER
+        binding.btnModelChip.setOnClickListener { showModelPicker() }
         binding.btnSend.setOnClickListener { sendMessage() }
     }
 
@@ -53,8 +53,8 @@ class MainActivity : AppCompatActivity() {
         
         binding.navView.setNavigationItemSelectedListener { item ->
             when (item.itemId) {
-                R.id.nav_api_key -> { /* Open API Settings */ }
-                R.id.nav_history -> { /* Open History */ }
+                R.id.nav_new_chat -> { msgs.clear(); binding.recyclerMessages.adapter?.notifyDataSetChanged() }
+                R.id.nav_api_key -> { /* API Key Settings Dialog */ }
             }
             binding.drawerLayout.closeDrawer(GravityCompat.START)
             true
@@ -76,28 +76,42 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showModelPicker() {
-        ModelSelectionDialog(models, model.modelId) { selected ->
-            model = selected
-            binding.btnModelChip.text = selected.displayName
-        }.show(supportFragmentManager, "model_picker")
+    private fun setupAnimatedRGBLogo() {
+        val logoText = binding.toolbar.getChildAt(0) as? TextView ?: return
+        val colors = intArrayOf(Color.RED, Color.GREEN, Color.BLUE, Color.RED)
+        val textWidth = logoText.paint.measureText(logoText.text.toString())
+        val shader = LinearGradient(0f, 0f, textWidth, 0f, colors, null, Shader.TileMode.REPEAT)
+        logoText.paint.shader = shader
+        val matrix = Matrix()
+        ValueAnimator.ofFloat(0f, textWidth).apply {
+            duration = 2500; repeatCount = ValueAnimator.INFINITE; interpolator = LinearInterpolator()
+            addUpdateListener { matrix.setTranslate(it.animatedValue as Float, 0f); shader.setLocalMatrix(matrix); logoText.invalidate() }
+            start()
+        }
     }
 
+    /**
+     * 2026 UPDATED MODEL LIST:
+     * Using Gemini 3/3.1 and Qwen Novita Vision models.
+     */
     private fun buildModels() = listOf(
-        ModelOption("Gemini 3 Flash", "gemini-3-flash-preview", "Google", ModelOption.TYPE_GEMINI),
-        ModelOption("Qwen 3.5 397B", "Qwen/Qwen3.5-397B-A17B:novita", "Alibaba", ModelOption.TYPE_HUGGINGFACE)
+        ModelOption("Gemini 3 Pro", "gemini-3-pro-preview", "Google - Ultra", ModelOption.TYPE_GEMINI),
+        ModelOption("Gemini 3.1 Pro", "gemini-3.1-pro-preview", "Google - NextGen", ModelOption.TYPE_GEMINI),
+        ModelOption("Gemini 2.5 Flash Lite", "gemini-2.5-flash-lite", "Google - Efficiency", ModelOption.TYPE_GEMINI),
+        ModelOption("Qwen 3.5 397B", "Qwen/Qwen3.5-397B-A17B:novita", "Alibaba - Vision Pro", ModelOption.TYPE_HUGGINGFACE),
+        ModelOption("Qwen 3.5 35B", "Qwen/Qwen3.5-35B-A3B:novita", "Alibaba - Vision Lite", ModelOption.TYPE_HUGGINGFACE),
+        ModelOption("Qwen 2.5 72B", "Qwen/Qwen2.5-72B-Instruct:novita", "Alibaba - Balanced", ModelOption.TYPE_HUGGINGFACE)
     )
 
     private fun sendMessage() {
         val txt = binding.etInput.text.toString().trim()
         if (txt.isEmpty()) return
         binding.etInput.setText("")
-        msgs.add(txt to 0) // User
+        msgs.add(txt to 0) // User (Right)
         val pos = msgs.size
-        msgs.add("Thinking..." to 1) // AI
+        msgs.add("Thinking..." to 1) // AI (Left)
         binding.recyclerMessages.adapter?.notifyItemRangeInserted(pos - 1, 2)
         binding.recyclerMessages.smoothScrollToPosition(msgs.size - 1)
-        
         reqCtrl.send(txt, model, null, { r -> updateMsg(pos, r) }, { e -> updateMsg(pos, "Error: $e") })
     }
 
@@ -113,33 +127,18 @@ class MainActivity : AppCompatActivity() {
         binding.recyclerMessages.adapter = ChatAdapter(msgs)
     }
 
-    private fun setupAnimatedRGBLogo() {
-        val logoText = binding.toolbar.getChildAt(0) as? TextView ?: return
-        val colors = intArrayOf(Color.RED, Color.GREEN, Color.BLUE, Color.RED)
-        val textWidth = logoText.paint.measureText(logoText.text.toString())
-        val shader = LinearGradient(0f, 0f, textWidth, 0f, colors, null, Shader.TileMode.REPEAT)
-        logoText.paint.shader = shader
-        val matrix = Matrix()
-        ValueAnimator.ofFloat(0f, textWidth).apply {
-            duration = 2500; repeatCount = ValueAnimator.INFINITE; interpolator = LinearInterpolator()
-            addUpdateListener { matrix.setTranslate(it.animatedValue as Float, 0f); shader.setLocalMatrix(matrix); logoText.invalidate() }
-            start()
-        }
-    }
-
     inner class ChatAdapter(private val m: List<Pair<String, Int>>) : RecyclerView.Adapter<VH>() {
         override fun onCreateViewHolder(p: ViewGroup, t: Int) = VH(LayoutInflater.from(p.context).inflate(R.layout.item_chat_message, p, false))
         override fun onBindViewHolder(h: VH, p: Int) {
             val (text, type) = m[p]
             h.tv.text = text
-            h.tv.setBackgroundResource(R.drawable.bg_glass_bubble)
+            h.tv.setBackgroundResource(R.drawable.bg_glass_bubble) 
             
-            // FIXED ALIGNMENT: User (0) on Right, AI (1) on Left
             val params = h.tv.layoutParams as android.widget.LinearLayout.LayoutParams
-            params.gravity = if (type == 0) Gravity.END else Gravity.START
+            params.gravity = if (type == 0) Gravity.END else Gravity.START 
             h.tv.layoutParams = params
         }
         override fun getItemCount() = m.size
     }
-    class VH(v: android.view.View) : RecyclerView.ViewHolder(v) { val tv: TextView = v.findViewById(R.id.tv_message) }
+    class VH(v: View) : RecyclerView.ViewHolder(v) { val tv: TextView = v.findViewById(R.id.tv_message) }
 }
