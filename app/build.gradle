@@ -13,7 +13,8 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0-QX"
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField "String", "GEMINI_API_KEY", "\"${System.env.GEMINI_API_KEY}\""
+        buildConfigField "String", "HUGGINGFACE_API_KEY", "\"${System.env.HUGGINGFACE_API_KEY}\""
     }
 
     buildTypes {
@@ -34,7 +35,6 @@ android {
         buildConfig true
     }
     composeOptions {
-        // Updated for 2026 compatibility
         kotlinCompilerExtensionVersion "1.5.11"
     }
 }
@@ -48,8 +48,6 @@ dependencies {
     implementation 'androidx.compose.ui:ui-graphics'
     implementation 'androidx.compose.ui:ui-tooling-preview'
     implementation 'androidx.compose.material3:material3'
-    
-    // Logic Dependencies
-    implementation "com.squareup.okhttp3:okhttp:4.12.0"
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
 }
