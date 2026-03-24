@@ -18,6 +18,9 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.unit.*
 import kotlinx.coroutines.launch
 
+// DEFINED ONLY HERE TO PREVENT COMPILATION ERRORS
+const val MSG_USER = 0
+const val MSG_AI = 1
 
 @Composable
 fun rememberRgbBrush(): Brush {
@@ -37,7 +40,7 @@ fun rememberRgbBrush(): Brush {
 fun TurnItLogo(modifier: Modifier = Modifier) {
     Text(
         text = "TurnIt",
-        style = TurnItTypography.displayMedium.copy(brush = rememberRgbBrush()),
+        style = MaterialTheme.typography.displayMedium.copy(brush = rememberRgbBrush()),
         modifier = modifier
     )
 }
@@ -89,7 +92,10 @@ fun TurnItMainScreen(
 
 @Composable
 fun ChatList(messages: List<Pair<String, Int>>) {
-    LazyColumn(Modifier.fillMaxSize().padding(8.dp)) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(messages.size) { if(messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1) }
+    
+    LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(8.dp)) {
         items(messages) { (text, type) ->
             Box(Modifier.fillMaxWidth(), contentAlignment = if (type == MSG_USER) Alignment.CenterEnd else Alignment.CenterStart) {
                 Text(
