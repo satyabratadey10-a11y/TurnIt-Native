@@ -18,15 +18,17 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.unit.*
 import kotlinx.coroutines.launch
 
-// DEFINED ONLY HERE TO PREVENT COMPILATION ERRORS
 const val MSG_USER = 0
 const val MSG_AI = 1
 
 @Composable
 fun rememberRgbBrush(): Brush {
-    val transition = rememberInfiniteTransition()
+    val transition = rememberInfiniteTransition(label = "rgb")
     val phase by transition.animateFloat(
-        0f, 1f, infiniteRepeatable(tween(3000, easing = LinearEasing))
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(3000, easing = LinearEasing)),
+        label = "phase"
     )
     return Brush.linearGradient(
         colors = listOf(Color.Red, Color.Green, Color.Blue, Color.Red),
@@ -94,19 +96,17 @@ fun TurnItMainScreen(
 fun ChatList(messages: List<Pair<String, Int>>) {
     val listState = rememberLazyListState()
     LaunchedEffect(messages.size) { if(messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1) }
-    
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(8.dp)) {
         items(messages) { (text, type) ->
             Box(Modifier.fillMaxWidth(), contentAlignment = if (type == MSG_USER) Alignment.CenterEnd else Alignment.CenterStart) {
-                Text(
-                    text = text,
-                    color = Color.White,
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .background(if (type == MSG_USER) Color(0x334285F4) else Color(0x33FFFFFF), RoundedCornerShape(12.dp))
-                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
-                        .padding(12.dp)
-                )
+                Surface(
+                    color = if (type == MSG_USER) Color(0x334285F4) else Color(0x331E1E1E),
+                    shape = RoundedCornerShape(16.dp),
+                    border = border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)).run { null },
+                    modifier = Modifier.padding(8.dp).widthIn(max = 300.dp)
+                ) {
+                    Text(text = text, color = Color.White, modifier = Modifier.padding(12.dp))
+                }
             }
         }
     }
