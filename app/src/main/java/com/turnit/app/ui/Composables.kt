@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.unit.*
 import kotlinx.coroutines.launch
 
+// Unified Constants
 const val MSG_USER = 0
 const val MSG_AI = 1
 
@@ -42,7 +43,9 @@ fun rememberRgbBrush(): Brush {
 fun TurnItLogo(modifier: Modifier = Modifier) {
     Text(
         text = "TurnIt",
-        style = MaterialTheme.typography.displayMedium.copy(brush = rememberRgbBrush()),
+        style = MaterialTheme.typography.displayMedium.copy(
+            brush = rememberRgbBrush()
+        ),
         modifier = modifier
     )
 }
@@ -100,9 +103,9 @@ fun ChatList(messages: List<Pair<String, Int>>) {
         items(messages) { (text, type) ->
             Box(Modifier.fillMaxWidth(), contentAlignment = if (type == MSG_USER) Alignment.CenterEnd else Alignment.CenterStart) {
                 Surface(
-                    color = if (type == MSG_USER) Color(0x334285F4) else Color(0x331E1E1E),
+                    color = if (type == MSG_USER) Color(0x404285F4) else Color(0x401E1E1E),
                     shape = RoundedCornerShape(16.dp),
-                    border = border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)).run { null },
+                    border = BorderStroke(1.dp, Color(0x33FFFFFF)),
                     modifier = Modifier.padding(8.dp).widthIn(max = 300.dp)
                 ) {
                     Text(text = text, color = Color.White, modifier = Modifier.padding(12.dp))
@@ -116,12 +119,18 @@ fun ChatList(messages: List<Pair<String, Int>>) {
 @Composable
 fun NeonInputBar(onSend: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
+    val brush = rememberRgbBrush()
     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
         TextField(
             value = text,
             onValueChange = { text = it },
-            modifier = Modifier.weight(1f).border(2.dp, rememberRgbBrush(), RoundedCornerShape(24.dp)),
-            colors = TextFieldDefaults.textFieldColors(containerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
+            modifier = Modifier.weight(1f).border(2.dp, brush, RoundedCornerShape(24.dp)),
+            colors = TextFieldDefaults.textFieldColors(
+                containerColor = Color.Transparent, 
+                focusedIndicatorColor = Color.Transparent, 
+                unfocusedIndicatorColor = Color.Transparent
+            ),
+            shape = RoundedCornerShape(24.dp)
         )
         IconButton(onClick = { if (text.isNotBlank()) { onSend(text); text = "" } }) {
             Icon(Icons.Default.Send, contentDescription = "Send", tint = Color.Cyan)
