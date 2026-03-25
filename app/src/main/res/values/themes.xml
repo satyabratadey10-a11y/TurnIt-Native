@@ -1,19 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TurnIt QX - Minimal Material3 bridge theme.
-     All visual styling is done in Jetpack Compose (TurnItTheme).
-     This file exists only to satisfy the Manifest android:theme
-     requirement and prevent a white flash on launch.
-     IMPORTANT: Do NOT create styles.xml or define Theme.TurnIt
-     anywhere else. This must be the single definition. -->
 <resources>
-    <style name="Theme.TurnIt"
-           parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Prevents white flash before Compose canvas draws -->
-        <item name="android:windowBackground">
-            @color/qx_void_black
-        </item>
-        <!-- Transparent status bar so Compose controls insets -->
+    <style name="Theme.TurnIt" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/qx_void_black</item>
         <item name="android:windowTranslucentStatus">true</item>
         <item name="android:windowLightStatusBar">false</item>
-    </style>
+    </application>
 </resources>
