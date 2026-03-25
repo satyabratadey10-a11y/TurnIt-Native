@@ -6,25 +6,27 @@ import androidx.activity.compose.setContent
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.lifecycleScope
 
-// Claude's standard 2026 UI imports
 import com.turnit.app.ui.MSG_USER
 import com.turnit.app.ui.MSG_AI
 import com.turnit.app.ui.TurnItMainScreen
 import com.turnit.app.ui.TurnItTheme
 
-/**
- * MainActivity: The Final Bridge
- * Device: vivo Y51a | Project: TurnIt (TuneAi)
- */
 class MainActivity : ComponentActivity() {
 
     private lateinit var reqCtrl: RequestController
     private val messages = mutableStateListOf<Pair<String, Int>>()
+    
+    // Create the ModelOption object for Gemini 3 Flash
+    private val defaultModel = ModelOption(
+        name = "Gemini 3 Flash",
+        id = "gemini-3-flash-preview",
+        description = "Google - Rapid",
+        type = ModelOption.TYPE_GEMINI
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize our RequestController logic
         reqCtrl = RequestController(
             scope = lifecycleScope, 
             geminiKey = BuildConfig.GEMINI_API_KEY, 
@@ -45,15 +47,12 @@ class MainActivity : ComponentActivity() {
     private fun sendMessage(text: String) {
         if (text.isBlank()) return
 
-        // 1. Add User message to the RIGHT
         messages.add(text to MSG_USER)
-        
-        // 2. Prepare AI slot on the LEFT
         val aiIndex = messages.size
         messages.add("Thinking..." to MSG_AI)
 
-        // 3. Call our AI Model (Gemini 3 Flash for vivo speed)
-        reqCtrl.send(text, "gemini-3-flash-preview", null, { response ->
+        // FIX: Passing the defaultModel object instead of a String
+        reqCtrl.send(text, defaultModel, null, { response ->
             messages[aiIndex] = response to MSG_AI
         }, { error ->
             messages[aiIndex] = "Error: $error" to MSG_AI
