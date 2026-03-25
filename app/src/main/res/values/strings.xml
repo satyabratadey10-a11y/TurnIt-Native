@@ -1,9 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">TurnIt</string>
-    <string name="hint_message">Message TurnIt...</string>
-    <string name="send">Send</string>
-    <string name="select_model">Select Model</string>
-    <string name="drawer_open">Open drawer</string>
-    <string name="drawer_close">Close drawer</string>
 </resources>
