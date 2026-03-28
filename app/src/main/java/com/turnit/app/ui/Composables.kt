@@ -3,16 +3,11 @@ package com.turnit.app.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.foundation.text.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,18 +24,17 @@ import com.turnit.app.models.ModelOption
 const val MSG_USER = 0
 const val MSG_AI   = 1
 
-private object QX {
+object QX {
     val VoidBlack      = Color(0xFF0B0E14)
     val QuantumTeal    = Color(0xFF008080)
     val GlassFill      = Color(0x1AFFFFFF)
     val GlassBorder    = Color(0x33FFFFFF)
     val TextPrimary    = Color(0xFFF0F4FF)
-    val TextMuted      = Color(0xFF8A9BB5)
 }
 
 @Composable
 fun TurnItTheme(content: @Composable () -> Unit) {
-    MaterialTheme(content = content)
+    MaterialTheme(colorScheme = darkColorScheme(background = QX.VoidBlack), content = content)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,15 +48,13 @@ fun TurnItMainScreen(
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    var showModelMenu by remember { mutableStateOf(false) }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(
-                drawerContainerColor = QX.VoidBlack,
-                drawerContentColor = QX.TextPrimary
-            ) {
-                Text("TurnIt History", modifier = Modifier.padding(16.dp), style = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold))
+            ModalDrawerSheet(drawerContainerColor = QX.VoidBlack) {
+                Text("TurnIt History", modifier = Modifier.padding(16.dp), color = QX.QuantumTeal, fontWeight = FontWeight.Bold)
                 NavigationDrawerItem(
                     label = { Text("New Chat") },
                     selected = false,
@@ -75,42 +67,47 @@ fun TurnItMainScreen(
             containerColor = QX.VoidBlack,
             topBar = {
                 TopAppBar(
-                    title = { Text("TurnIt", color = QX.QuantumTeal, fontWeight = FontWeight.Bold) },
+                    title = { Text("TurnIt", color = QX.QuantumTeal) },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(Icons.Default.Menu, "Menu", tint = QX.QuantumTeal)
                         }
                     },
+                    actions = {
+                        Box {
+                            TextButton(onClick = { showModelMenu = true }) {
+                                Text(initialModel.shortLabel, color = QX.QuantumTeal)
+                            }
+                            DropdownMenu(expanded = showModelMenu, onDismissRequest = { showModelMenu = false }) {
+                                QX_MODELS.forEach { model ->
+                                    DropdownMenuItem(
+                                        text = { Text(model.displayName) },
+                                        onClick = { onModelChange(model); showModelMenu = false }
+                                    )
+                                }
+                            }
+                        }
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = QX.VoidBlack)
                 )
             },
-            bottomBar = {
-                NeonInputBar(onSend = onSend)
-            }
+            bottomBar = { NeonInputBar(onSend = onSend) }
         ) { pad ->
-            Box(Modifier.padding(pad).fillMaxSize()) {
-                ChatList(messages)
-            }
+            ChatList(messages, Modifier.padding(pad))
         }
     }
 }
 
 @Composable
-fun ChatList(messages: List<Pair<String, Int>>) {
+fun ChatList(messages: List<Pair<String, Int>>, modifier: Modifier) {
     val state = rememberLazyListState()
-    LaunchedEffect(messages.size) { if(messages.isNotEmpty()) state.animateScrollToItem(messages.size - 1) }
-    LazyColumn(state = state, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
-        itemsIndexed(messages) { _, msg ->
+    LazyColumn(state = state, modifier = modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
+        items(messages) { msg ->
             val align = if(msg.second == MSG_USER) Alignment.CenterEnd else Alignment.CenterStart
-            val color = if(msg.second == MSG_USER) QX.QuantumTeal.copy(alpha = 0.2f) else QX.GlassFill
             Box(Modifier.fillMaxWidth(), contentAlignment = align) {
                 Text(
                     text = msg.first,
-                    modifier = Modifier
-                        .padding(vertical = 4.dp)
-                        .background(color, RoundedCornerShape(12.dp))
-                        .border(1.dp, QX.GlassBorder, RoundedCornerShape(12.dp))
-                        .padding(12.dp),
+                    modifier = Modifier.padding(vertical = 4.dp).background(QX.GlassFill, RoundedCornerShape(12.dp)).padding(12.dp),
                     color = QX.TextPrimary
                 )
             }
@@ -121,18 +118,20 @@ fun ChatList(messages: List<Pair<String, Int>>) {
 @Composable
 fun NeonInputBar(onSend: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
-    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(16.dp)) {
         TextField(
-            value = text,
-            onValueChange = { text = it },
-            modifier = Modifier.weight(1f).background(QX.GlassFill, CircleShape).border(1.dp, QX.QuantumTeal, CircleShape),
-            placeholder = { Text("Message...", color = QX.TextMuted) },
-            colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
+            value = text, onValueChange = { text = it },
+            modifier = Modifier.weight(1f).background(QX.GlassFill, CircleShape),
+            placeholder = { Text("Message...") },
+            colors = TextFieldDefaults.colors(focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { onSend(text); text = "" })
         )
-        IconButton(onClick = { onSend(text); text = "" }) {
-            Icon(Icons.Default.Send, "Send", tint = QX.QuantumTeal)
-        }
+        IconButton(onClick = { onSend(text); text = "" }) { Icon(Icons.Default.Send, null, tint = QX.QuantumTeal) }
     }
 }
+
+val QX_MODELS = listOf(
+    ModelOption("Gemini 3 Flash", "gemini-3-flash-preview", "Google - Rapid", ModelOption.TYPE_GEMINI, "G3F"),
+    ModelOption("Qwen 3.5 Novita", "qwen-3.5-novita", "Alibaba - Logic", ModelOption.TYPE_HUGGINGFACE, "Q3N")
+)
