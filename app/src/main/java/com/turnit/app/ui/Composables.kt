@@ -277,11 +277,7 @@ fun TurnItLogo(modifier: Modifier = Modifier) {
 // MODEL OPTION DATA
 // =========================================================
 
-data class ModelOption(
-    val id:          String,
-    val displayName: String,
-    val shortLabel:  String
-)
+
 
 val QX_MODELS = listOf(
     ModelOption("gemini-3-flash",   "Gemini 3 Flash",      "G3F"),
@@ -718,7 +714,7 @@ fun TurnItMainScreen(
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor      = Color(0xCC0B0E14),
                         titleContentColor   = QX.TextPrimary,
-                        navigationIconColor = QX.QuantumTeal
+                        navigationIconContentColor = QX.QuantumTeal
                     )
                 )
             },

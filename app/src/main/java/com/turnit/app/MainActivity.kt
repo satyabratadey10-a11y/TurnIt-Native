@@ -7,17 +7,20 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.lifecycleScope
 
 import com.turnit.app.ui.*
+import com.turnit.app.ModelOption
 
 class MainActivity : ComponentActivity() {
     private lateinit var reqCtrl: RequestController
     private val messages = mutableStateListOf<Pair<String, Int>>()
     
-    // Auth State (Fixes Problem 2)
+    // Auth State (Problem 2)
     private var isLoggedIn by mutableStateOf(false)
     private var currentScreen by mutableStateOf("login")
 
-    // Model State (Fixes Problems 1 & 5)
-    private var activeModel by mutableStateOf(QX_MODELS[0])
+    // Global Model State (Problem 5 Fix)
+    private var activeModel by mutableStateOf(
+        ModelOption("Gemini 3 Flash", "gemini-3-flash-preview", "Rapid", ModelOption.TYPE_GEMINI)
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,10 +44,10 @@ class MainActivity : ComponentActivity() {
                     else -> {
                         TurnItMainScreen(
                             messages = messages,
-                            initialModel = activeModel, // Claude's new parameter
-                            onModelChange = { activeModel = it }, // Problem 5 Fix
+                            initialModel = activeModel,
+                            onModelChange = { activeModel = it }, // Model Switch Connection
                             onSend = { text -> sendMessage(text) },
-                            onNewChat = { messages.clear() } // Problem 4 Fix
+                            onNewChat = { messages.clear() } // New Chat Fix
                         )
                     }
                 }
@@ -58,6 +61,7 @@ class MainActivity : ComponentActivity() {
         val aiIndex = messages.size
         messages.add("Thinking..." to MSG_AI)
 
+        // Pass the CURRENT active model to the AI controller
         reqCtrl.send(text, activeModel, null, { response ->
             messages[aiIndex] = response to MSG_AI
         }, { error ->
