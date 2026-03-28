@@ -3,13 +3,7 @@ package com.turnit.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.* // This provides getValue and setValue
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.*
 import androidx.lifecycle.lifecycleScope
 import com.turnit.app.ui.*
 import com.turnit.app.models.ModelOption
@@ -18,42 +12,39 @@ class MainActivity : ComponentActivity() {
     private lateinit var reqCtrl: RequestController
     private val messages = mutableStateListOf<Pair<String, Int>>()
     
-    // Logic for Login and Model Switching
+    // Auth State
     private var isLoggedIn by mutableStateOf(false)
+    private var currentScreen by mutableStateOf("login")
+
+    // Model State
     private var activeModel by mutableStateOf(QX_MODELS[0])
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        reqCtrl = RequestController(
-            lifecycleScope, 
-            "", 
-            ""
-        )
+        reqCtrl = RequestController(lifecycleScope, BuildConfig.GEMINI_API_KEY, BuildConfig.HUGGINGFACE_API_KEY)
 
         setContent {
             TurnItTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    if (!isLoggedIn) {
-                        // FIX: Added required imports for Button and Text
-                        Button(
-                            onClick = { isLoggedIn = true }, 
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Text("ENTER TURNIT")
-                        }
+                if (!isLoggedIn) {
+                    if (currentScreen == "login") {
+                        LoginScreen(
+                            onLoginClick = { _, _ -> isLoggedIn = true },
+                            onSignupClick = { currentScreen = "signup" }
+                        )
                     } else {
-                        TurnItMainScreen(
-                            messages = messages,
-                            initialModel = activeModel,
-                            onModelChange = { activeModel = it },
-                            onSend = { text -> sendMessage(text) },
-                            onNewChat = { messages.clear() }
+                        SignupScreen(
+                            onSignupClick = { _, _, _ -> currentScreen = "login" },
+                            onLoginClick = { currentScreen = "login" }
                         )
                     }
+                } else {
+                    TurnItMainScreen(
+                        messages = messages,
+                        selectedModel = activeModel,
+                        onModelChange = { activeModel = it },
+                        onSend = { text -> sendMessage(text) },
+                        onNewChat = { messages.clear() }
+                    )
                 }
             }
         }
@@ -62,12 +53,13 @@ class MainActivity : ComponentActivity() {
     private fun sendMessage(text: String) {
         if (text.isBlank()) return
         messages.add(text to MSG_USER)
-        
-        // Pass the CURRENT active model to the AI controller
+        val aiIndex = messages.size
+        messages.add("..." to MSG_AI)
+
         reqCtrl.send(text, activeModel, null, { response ->
-            messages.add(response to MSG_AI)
+            messages[aiIndex] = response to MSG_AI
         }, { error ->
-            // Handle error
+            messages[aiIndex] = "Error: $error" to MSG_AI
         })
     }
 }
