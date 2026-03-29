@@ -79,7 +79,6 @@ fun QXTextField(
     )
 }
 
-// RESTORING LOGIN UI (Image 8)
 @Composable
 fun LoginScreen(onLoginClick: (String, String) -> Unit, onSignupClick: () -> Unit) {
     var username by remember { mutableStateOf("") }
@@ -87,14 +86,12 @@ fun LoginScreen(onLoginClick: (String, String) -> Unit, onSignupClick: () -> Uni
 
     NebulaBackground {
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            // Profile Avatar Placeholder
             Box(Modifier.size(100.dp).background(QX.GlassFill, CircleShape).border(1.dp, QX.QuantumTeal, CircleShape), contentAlignment = Alignment.Center) {
                 Icon(Icons.Default.Person, null, modifier = Modifier.size(60.dp), tint = QX.TextMuted)
             }
             Text("TurnIt-Native", modifier = Modifier.padding(top = 16.dp, bottom = 48.dp), color = QX.QuantumTeal, fontSize = 28.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
 
-            // Missing Input Fields (Problem 1 Fix)
-            QXTextField(username, { username = it }, "Username", androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_search)) // Use proper icons in production
+            QXTextField(username, { username = it }, "Username", androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_search))
             QXTextField(password, { password = it }, "Password", androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_secure), visualTransformation = PasswordVisualTransformation())
 
             Button(onClick = { onLoginClick(username, password) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 24.dp).height(50.dp), colors = ButtonDefaults.buttonColors(containerColor = QX.QuantumTeal), shape = RoundedCornerShape(25.dp)) {
@@ -105,7 +102,6 @@ fun LoginScreen(onLoginClick: (String, String) -> Unit, onSignupClick: () -> Uni
     }
 }
 
-// RESTORING SIGNUP UI (Image 9)
 @Composable
 fun SignupScreen(onSignupClick: (String, String, String) -> Unit, onLoginClick: () -> Unit) {
     var username by remember { mutableStateOf("") }
@@ -128,7 +124,6 @@ fun SignupScreen(onSignupClick: (String, String, String) -> Unit, onLoginClick: 
     }
 }
 
-// TurnItMainScreen stays complex, ensuring the Model Selector is in the Red Box location.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TurnItMainScreen(
@@ -163,11 +158,13 @@ fun TurnItMainScreen(
             bottomBar = { NeonInputBar(onSend = onSend) }
         ) { pad ->
             NebulaBackground {
+                // The box fills the space ABOVE the bottomBar
                 Box(Modifier.padding(pad).fillMaxSize()) {
                     ChatList(messages)
 
-                    // MODEL SELECTOR (RED BOX LOCATION FIXED)
-                    Column(Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 100.dp), horizontalAlignment = Alignment.End) {
+                    // MODIFIED: Padding changed from bottom=100.dp to bottom=8.dp
+                    // This aligns the floating button absolutely directly above the input box
+                    Column(Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 8.dp), horizontalAlignment = Alignment.End) {
                         if (showModelMenu) {
                             Surface(Modifier.heightIn(max = 300.dp).width(200.dp).padding(bottom = 8.dp), color = QX.VoidBlack.copy(0.9f), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, QX.GlassBorder)) {
                                 LazyColumn {
@@ -190,7 +187,7 @@ fun TurnItMainScreen(
 @Composable
 fun ChatList(messages: List<Pair<String, Int>>) {
     val state = rememberLazyListState()
-    LazyColumn(state = state, modifier = Modifier.fillMaxSize().padding(bottom = 90.dp)) {
+    LazyColumn(state = state, modifier = Modifier.fillMaxSize().padding(bottom = 70.dp)) {
         items(messages) { msg ->
             val isUser = msg.second == MSG_USER
             Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), contentAlignment = if(isUser) Alignment.CenterEnd else Alignment.CenterStart) {

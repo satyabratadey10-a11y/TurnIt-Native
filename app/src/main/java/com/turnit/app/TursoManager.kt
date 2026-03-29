@@ -29,12 +29,6 @@ class TursoManager(private val dbUrl: String, private val authToken: String) {
         }
     }
 
-    fun saveMessage(userId: String, role: String, content: String) {
-        val cleanContent = content.replace("'", "''")
-        val sql = "INSERT INTO chat_history (user_id, role, content) VALUES ('$userId', '$role', '$cleanContent');"
-        execute(sql) { _, _ -> }
-    }
-
     private fun execute(sql: String, callback: (Boolean, JSONObject?) -> Unit) {
         val body = JSONObject().apply {
             put("requests", JSONArray().put(JSONObject().apply {

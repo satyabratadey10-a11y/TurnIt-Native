@@ -1,6 +1,7 @@
 package com.turnit.app
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +15,7 @@ import com.turnit.app.models.ModelOption
 
 class MainActivity : ComponentActivity() {
     private lateinit var reqCtrl: RequestController
+    private lateinit var turso: TursoManager
     private val messages = mutableStateListOf<Pair<String, Int>>()
     
     private var userId by mutableStateOf<String?>(null)
@@ -23,11 +25,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        reqCtrl = RequestController(
-            lifecycleScope, 
-            BuildConfig.GEMINI_API_KEY, 
-            BuildConfig.HUGGINGFACE_API_KEY
-        )
+        turso = TursoManager(BuildConfig.TURSO_URL, BuildConfig.TURSO_TOKEN)
+        reqCtrl = RequestController(lifecycleScope, BuildConfig.GEMINI_API_KEY, BuildConfig.HUGGINGFACE_API_KEY)
 
         setContent {
             TurnItTheme {
@@ -35,12 +34,22 @@ class MainActivity : ComponentActivity() {
                     if (userId == null) {
                         if (currentScreen == "login") {
                             LoginScreen(
-                                onLoginClick = { u, p -> userId = "SESSION_LOADED" },
+                                onLoginClick = { u, p -> 
+                                    turso.login(u, p) { success, id -> 
+                                        if(success) userId = id 
+                                        else runOnUiThread { Toast.makeText(this@MainActivity, id, Toast.LENGTH_SHORT).show() }
+                                    }
+                                },
                                 onSignupClick = { currentScreen = "signup" }
                             )
                         } else {
                             SignupScreen(
-                                onSignupClick = { u, e, p -> currentScreen = "login" },
+                                onSignupClick = { u, e, p -> 
+                                    turso.signup(u, e, p) { success, id -> 
+                                        if(success) userId = id 
+                                        else runOnUiThread { Toast.makeText(this@MainActivity, id, Toast.LENGTH_SHORT).show() }
+                                    }
+                                },
                                 onLoginClick = { currentScreen = "login" }
                             )
                         }
@@ -62,7 +71,7 @@ class MainActivity : ComponentActivity() {
         if (text.isBlank()) return
         messages.add(text to MSG_USER)
         val aiIndex = messages.size
-        messages.add("Thinking..." to MSG_AI)
+        messages.add("..." to MSG_AI)
 
         reqCtrl.send(text, activeModel, null, { response ->
             messages[aiIndex] = response to MSG_AI
