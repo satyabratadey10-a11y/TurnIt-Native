@@ -5,6 +5,7 @@ import kotlinx.coroutines.*
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import org.json.JSONObject
 
 class RequestController(
@@ -19,9 +20,9 @@ class RequestController(
         scope.launch(Dispatchers.IO) {
             try {
                 if (model.apiType == ModelOption.TYPE_GEMINI) {
-                    callGemini(prompt, model.modelId, onSuccess, onError)
+                    callGemini(prompt, model.modelId, history, onSuccess, onError)
                 } else {
-                    callHuggingFace(prompt, model.modelId, onSuccess, onError)
+                    callHuggingFace(prompt, model.modelId, history, onSuccess, onError)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) { onError("Error: ${e.message}") }
@@ -29,9 +30,22 @@ class RequestController(
         }
     }
 
-    private fun callGemini(prompt: String, modelId: String, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
+    private fun callGemini(prompt: String, modelId: String, history: List<Pair<String, String>>?, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
         val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelId:generateContent?key=$geminiKey"
-        val body = """{"contents":[{"parts":[{"text":"${prompt.replace("\"", "\\\"")}"}]}]}""".toRequestBody(JSON)
+        
+        val contentsArray = JSONArray()
+        history?.forEach { msg ->
+            contentsArray.put(JSONObject().apply {
+                put("role", msg.first)
+                put("parts", JSONArray().put(JSONObject().apply { put("text", msg.second) }))
+            })
+        }
+        contentsArray.put(JSONObject().apply {
+            put("role", "user")
+            put("parts", JSONArray().put(JSONObject().apply { put("text", prompt) }))
+        })
+
+        val body = JSONObject().put("contents", contentsArray).toString().toRequestBody(JSON)
         val request = Request.Builder().url(url).post(body).build()
 
         client.newCall(request).execute().use { response ->
@@ -49,25 +63,40 @@ class RequestController(
         }
     }
 
-    private fun callHuggingFace(prompt: String, modelId: String, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
-        val url = "https://api.novita.ai/v3/openai/chat/completions"
+    private fun callHuggingFace(prompt: String, modelId: String, history: List<Pair<String, String>>?, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
+        val url = "https://router.huggingface.co/v1/chat/completions"
+        
+        val messagesArray = JSONArray()
+        history?.forEach { msg ->
+            val role = if (msg.first == "model") "assistant" else "user"
+            messagesArray.put(JSONObject().apply {
+                put("role", role)
+                put("content", msg.second)
+            })
+        }
+        messagesArray.put(JSONObject().apply {
+            put("role", "user")
+            put("content", prompt)
+        })
+
         val jsonBody = JSONObject().apply {
             put("model", modelId)
-            put("messages", org.json.JSONArray().put(JSONObject().apply {
-                put("role", "user")
-                put("content", prompt)
-            }))
+            put("messages", messagesArray)
+            put("stream", false)
         }
+        
         val body = jsonBody.toString().toRequestBody(JSON)
         val request = Request.Builder()
             .url(url)
             .addHeader("Authorization", "Bearer $hfKey")
+            .addHeader("Content-Type", "application/json")
             .post(body)
             .build()
 
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                scope.launch(Dispatchers.Main) { onError("Novita Error: ${response.code}") }
+                val err = response.body?.string() ?: "Unknown Router Error"
+                scope.launch(Dispatchers.Main) { onError("HF Error ${response.code}: $err") }
                 return
             }
             val resStr = response.body?.string()
