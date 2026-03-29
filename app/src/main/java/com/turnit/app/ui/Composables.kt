@@ -1,3 +1,4 @@
+import androidx.compose.foundation.layout.heightIn
 package com.turnit.app.ui
 
 // ModelOption and QX_MODELS imported from the models package
@@ -692,7 +693,7 @@ fun TurnItMainScreen(
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor      = Color(0xCC0B0E14),
                         titleContentColor   = QX.TextPri,
-                        navigationIconColor = QX.Teal
+                        navigationIconContentColor = QX.Teal
                     )
                 )
             },
