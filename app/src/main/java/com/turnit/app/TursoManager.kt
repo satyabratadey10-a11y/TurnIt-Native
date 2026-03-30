@@ -38,13 +38,15 @@ class TursoManager(private val dbUrl: String, private val authToken: String) {
     }
 
     private fun execute(sql: String, callback: (Boolean, JSONObject?, String?) -> Unit) {
-        // Diagnostic 1: Check Secrets Injection
-        if (dbUrl.isBlank()) { callback(false, null, "TURSO_URL secret is blank"); return }
-        if (!dbUrl.startsWith("http")) { callback(false, null, "TURSO_URL must start with https://"); return }
+        // Intercept and auto-correct the libsql:// protocol for OkHttp
+        val secureUrl = dbUrl.replaceFirst("libsql://", "https://")
+        
+        if (secureUrl.isBlank()) { callback(false, null, "TURSO_URL secret is blank"); return }
+        if (!secureUrl.startsWith("http")) { callback(false, null, "Invalid URL format: $secureUrl"); return }
         if (authToken.isBlank()) { callback(false, null, "TURSO_TOKEN secret is blank"); return }
 
         try {
-            val cleanUrl = if (dbUrl.endsWith("/")) dbUrl.dropLast(1) else dbUrl
+            val cleanUrl = if (secureUrl.endsWith("/")) secureUrl.dropLast(1) else secureUrl
             val body = JSONObject().apply {
                 put("requests", JSONArray().put(JSONObject().apply {
                     put("type", "execute")
@@ -66,7 +68,6 @@ class TursoManager(private val dbUrl: String, private val authToken: String) {
                     try {
                         val resBody = response.body?.string()
                         
-                        // Diagnostic 2: Check HTTP Status (e.g., 401 Unauthorized, 404 Not Found)
                         if (!response.isSuccessful) {
                             callback(false, null, "HTTP ${response.code}: $resBody")
                             return
@@ -76,7 +77,6 @@ class TursoManager(private val dbUrl: String, private val authToken: String) {
                             val json = JSONObject(resBody)
                             val resultObj = json.getJSONArray("results").getJSONObject(0)
                             
-                            // Diagnostic 3: Check Turso SQL Execution Errors (e.g., missing table)
                             if (resultObj.has("type") && resultObj.getString("type") == "error") {
                                 val errObj = resultObj.getJSONObject("error").getString("message")
                                 callback(false, null, "SQL Error: $errObj")
