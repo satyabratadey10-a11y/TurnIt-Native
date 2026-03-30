@@ -14,14 +14,16 @@ class TursoManager(private val dbUrl: String, private val authToken: String) {
 
     fun signup(username: String, email: String, pass: String, onResult: (Boolean, String?) -> Unit) {
         val id = UUID.randomUUID().toString()
-        val sql = "INSERT INTO users (id, username, email, password_hash) VALUES ('$id', '$username', '$email', '$pass');"
+        // Changed password_hash to password
+        val sql = "INSERT INTO users (id, username, email, password) VALUES ('$id', '$username', '$email', '$pass');"
         execute(sql) { success, _, errorMsg -> 
             onResult(success, if (success) id else "Signup Fail: $errorMsg") 
         }
     }
 
     fun login(username: String, pass: String, onResult: (Boolean, String?) -> Unit) {
-        val sql = "SELECT id FROM users WHERE username = '$username' AND password_hash = '$pass';"
+        // Changed password_hash to password
+        val sql = "SELECT id FROM users WHERE username = '$username' AND password = '$pass';"
         execute(sql) { success, data, errorMsg ->
             try {
                 if (success && data != null) {
@@ -38,7 +40,6 @@ class TursoManager(private val dbUrl: String, private val authToken: String) {
     }
 
     private fun execute(sql: String, callback: (Boolean, JSONObject?, String?) -> Unit) {
-        // Intercept and auto-correct the libsql:// protocol for OkHttp
         val secureUrl = dbUrl.replaceFirst("libsql://", "https://")
         
         if (secureUrl.isBlank()) { callback(false, null, "TURSO_URL secret is blank"); return }
